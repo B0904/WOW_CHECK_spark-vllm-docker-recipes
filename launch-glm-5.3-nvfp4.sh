@@ -14,4 +14,5 @@ HOST_8=192.168.100.18
 "$BASE_PATH/run-recipe.sh" glm-5.3-nvfp4 \
     --ib-if rocep1s0f0 \
     --eth-if enp1s0f0np0 \
+    --max-model-len 590000 \
     -n $HOST_1,$HOST_2,$HOST_3,$HOST_4,$HOST_5,$HOST_6,$HOST_7,$HOST_8
