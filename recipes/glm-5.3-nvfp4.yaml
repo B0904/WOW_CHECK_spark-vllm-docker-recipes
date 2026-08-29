@@ -1,3 +1,18 @@
+# CHAT TEMPLATE KWARGS (set 2026-08-29, per the zai-org/GLM-5.3 model card)
+#   reasoning_effort=max  — card: accepts low|high|max, defaults to max if not
+#     passed. Set explicitly so it is visible rather than implicit. Roger ran
+#     GLM-5.2 at max too, so this keeps the 5.2/5.3 comparison honest.
+#     Card notes max is the setting for "benchmark and leaderboard reproduction".
+#   clear_thinking=true   — card: "defaults to false if not passed. For chat
+#     scenarios, explicitly pass clear_thinking=true." TRUE strips prior-turn
+#     reasoning from rendered history; false retains every turn's thinking.
+#     At reasoning_effort=max, retained reasoning compounds across turns and
+#     inflates effective context far beyond the visible conversation — which
+#     slows decode (see the depth curve: 23.07 t/s @50K -> 16.70 @480K).
+#     NB this is the OPPOSITE of kimi-k2.7-code.yaml, where the model expects
+#     its prior reasoning kept. Do not generalise between the two.
+#     eugr sets clear_thinking=false, i.e. the default, NOT the card's advice.
+#
 # SPECULATION FINDINGS (2026-08-29, measured on this fleet)
 #
 # MTP2 DOES NOT WORK on this stack, despite num_nextn_predict_layers=1.
@@ -268,6 +283,7 @@ command: |
   --long-prefill-token-threshold 2048 \
   --compilation-config '{{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}}' \
   --seed 42 \
+  --default-chat-template-kwargs '{{"reasoning_effort":"max","clear_thinking":true}}' \
   --enable-prefix-caching \
   --distributed-executor-backend ray \
   --enable-auto-tool-choice \
