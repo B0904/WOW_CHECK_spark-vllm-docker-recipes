@@ -33,13 +33,34 @@
 # Configure agents to pass reasoning back. Recommended sampling:
 # temperature=1.0, top_p=0.95 (official).
 #
-# No native MTP (num_nextn_predict_layers=0). DFlash speculation TESTED
-# AND REJECTED (2026-07-05): the community draft cm00cm/Kimi-K2.7-Code-
-# DFlash got 9.7% acceptance against this INT4 deployment — decode fell
-# 22.75 -> 10.2 tok/s — and outputs shifted at temperature 0 (one canary
-# + one vision check regressed), so this dflash path is not strictly
-# lossless here. Drafts don't transfer across quants/configs; revisit
-# only with a draft trained against this exact deployment.
+# No native MTP (num_nextn_predict_layers=0). SPECULATION IS OFF — but the
+# reason was MISDIAGNOSED for two months, so read this before retrying.
+#
+# Three drafts were tested and all looked like big losses vs the 20.61 tok/s
+# no-spec baseline: cm00cm DFlash (2026-07-05, 10.2 t/s), nvidia DFlash
+# (2026-08-24, 11.93), novita EAGLE3-MLA (2026-08-24, 11.92). The drafts were
+# blamed. That was wrong.
+#
+# The tell: two drafts with very different acceptance (15.3% vs 22.5%) and
+# tokens/cycle (2.23 vs 1.68) landed on IDENTICAL throughput — impossible if
+# the draft were the variable. Enabling ANY speculation makes vLLM log:
+#   "CUDAGraphMode.FULL_AND_PIECEWISE is not supported with spec-decode for
+#    attention backend TritonMLABackend (UNIFORM_SINGLE_TOKEN_DECODE);
+#    setting cudagraph_mode=PIECEWISE"
+# Control test 2026-08-25 (no spec, cudagraph forced PIECEWISE): 10.04 t/s.
+# Against that correct floor BOTH drafts GAINED ~19%. Full CUDA graphs are
+# worth 2.05x on this model — a bigger lever than any draft.
+#
+# WHY K2.7 AND NOT GLM: GLM-5.2 has DSA sparse attention -> selects
+# FlashInferMLASparseSM120Backend (UNIFORM_BATCH) -> keeps full graphs with
+# MTP2, measured 22.45 t/s at 79% acceptance. K2.7 has NO DSA sparse
+# attention, so it falls to TRITON_MLA, the only sm_121 MLA backend that runs
+# — and it is capped at single-token capture. Structural, not tunable.
+#
+# So: speculation here needs an MLA backend at UNIFORM_BATCH on sm_121. The
+# only candidate is B12X_MLA (ciprianveg image, already on spark-09..16),
+# unproven for K2.7's INT4 compressed-tensors. Do NOT re-test another draft
+# against the 20.61 number — it is not a floor any spec config can reach.
 #
 # HOST MEMORY (2026-07-12 incident): at gpu_memory_utilization 0.85 the
 # head node froze in a kernel OOM (swap exhausted, fleet power-cycled)
