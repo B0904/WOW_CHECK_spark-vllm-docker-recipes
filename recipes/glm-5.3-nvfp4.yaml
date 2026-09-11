@@ -252,7 +252,17 @@ env:
   # sparse-MLA wedge (raw NCCL swept clean without them) but kept as
   # known-good; candidates to drop when tuning.
   NCCL_PROTO: Simple
-  NCCL_ALGO: Ring
+  NCCL_ALGO: Ring     # KEPT after testing 2026-09-03. Removing it (as was done for
+                      # Kimi-K3, worth +24-30% there) does NOT work for GLM: NCCL
+                      # auto-selection allocates buffers for MULTIPLE algorithms, costing
+                      # ~5.7 GiB of GPU memory. Available KV drops 31.73 -> ~26.0 GiB
+                      # (reproduced 3x), so 600K no longer fits (engine estimates max
+                      # ~510K). K3 was immune because its KV pool is PINNED via
+                      # --kv-cache-memory-bytes, so the extra NCCL buffers came out of
+                      # unused headroom; GLM sizes KV from gpu-memory-utilization, so they
+                      # eat context directly. The upside is also smaller here: GLM is TP=8
+                      # (Ring 2(8-1)=14 hops vs Tree ~6) where K3 is TP=16 (30 vs 8).
+                      # Context at 600K is worth more than a small decode gain.
   NCCL_NCHANNELS: "1"
   NCCL_CROSS_NIC: "0"
   NCCL_IB_QPS_PER_CONNECTION: "1"
